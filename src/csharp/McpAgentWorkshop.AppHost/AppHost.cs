@@ -64,4 +64,9 @@ builder.AddPythonApp("chat-frontend", Path.Combine(sourceFolder, "shared", "web_
 builder.AddMcpInspector("mcp-inspector")
     .WithReference(mcpServer);
 
+builder.AddProject<Projects.McpAgentWorkshop_McpServer>("dotnet-mcp-server")
+    .WithReference(zava)
+    .WaitFor(zava)
+    .WithDevTunnel(devtunnel);
+
 builder.Build().Run();
