@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text;
 using ModelContextProtocol.Server;
 using Npgsql;
@@ -9,13 +10,18 @@ namespace McpAgentWorkshop.McpServer.Tools;
 public class DatabaseSchemaTools
 {
     [McpServerTool, Description("Retrieve schemas for multiple tables. Use this tool only for schemas you have not already fetched during the conversation.")]
-    public static async Task<string> GetMultipleTableSchemas(
+    public static async Task<string> GetMultipleTableSchemasAsync(
         IHttpContextAccessor httpContextAccessor,
         ILogger<DatabaseSchemaTools> logger,
         NpgsqlConnection connection,
         [Description("List of table names. Valid table names include 'retail.customers', 'retail.stores', 'retail.categories', 'retail.product_types', 'retail.products', 'retail.orders', 'retail.order_items', 'retail.inventory'.")]
         string[] tableNames)
     {
+        var activity = Diagnostics.ActivitySource.StartActivity(
+            name: nameof(GetMultipleTableSchemasAsync),
+            kind: ActivityKind.Server,
+            links: Diagnostics.ActivityLinkFromCurrent());
+
         if (tableNames is null || tableNames.Length == 0)
         {
             logger.LogError("Table names cannot be null or empty.");

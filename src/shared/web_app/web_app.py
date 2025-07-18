@@ -30,7 +30,9 @@ logger = logging.getLogger(__name__)
 
 # Agent service configuration
 AGENT_SERVICE_URL = os.environ.get(
-    "services__python-agent-app__http__0", "http://127.0.0.1:8006")
+    "services__dotnet-agent-app__http__0",
+    os.environ.get("services__python-agent-app__http__0", "http://127.0.0.1:8006"),
+)
 
 static_dir = Path(__file__).parent / "static"
 
@@ -49,14 +51,12 @@ class WebApp:
 
     def _setup_static_files(self) -> None:
         """Setup static file serving."""
-        self.app.mount(
-            "/static", StaticFiles(directory=str(static_dir)), name="static")
+        self.app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     def _setup_routes(self) -> None:
         """Setup all web routes."""
         self.app.get("/", response_class=HTMLResponse)(self.get_chat_page)
-        self.app.get("/favicon.ico",
-                     response_class=FileResponse)(self.get_favicon)
+        self.app.get("/favicon.ico", response_class=FileResponse)(self.get_favicon)
         self.app.post("/upload")(self.upload_file)
         self.app.get("/chat/stream")(self.stream_chat)
         self.app.get("/files/{filename}")(self.serve_file)
@@ -79,15 +79,11 @@ class WebApp:
             # Check file size (10MB limit)
             content = await file.read()
             if len(content) > 10 * 1024 * 1024:
-                raise HTTPException(
-                    status_code=413, detail="File too large (max 10MB)")
+                raise HTTPException(status_code=413, detail="File too large (max 10MB)")
 
             # Extract text based on file type
             file_text = ""
-            file_extension = (
-                file.filename.lower().split(
-                    ".")[-1] if file.filename and "." in file.filename else ""
-            )
+            file_extension = file.filename.lower().split(".")[-1] if file.filename and "." in file.filename else ""
 
             if file_extension in ["txt", "md"]:
                 file_text = content.decode("utf-8")
@@ -117,8 +113,7 @@ class WebApp:
         with tracer.start_as_current_span("stream_chat") as span:
             if not message.strip():
                 return StreamingResponse(
-                    iter(
-                        [f"data: {json.dumps({'error': 'Empty message'})}\n\n"]),
+                    iter([f"data: {json.dumps({'error': 'Empty message'})}\n\n"]),
                     media_type="text/event-stream",
                 )
 
@@ -128,8 +123,7 @@ class WebApp:
                 self.chat_sessions[session_id] = []
 
             # Add user message to session
-            self.chat_sessions[session_id].append(
-                {"role": "user", "content": message})
+            self.chat_sessions[session_id].append({"role": "user", "content": message})
 
             return StreamingResponse(
                 self._generate_stream(message, session_id),
@@ -139,7 +133,7 @@ class WebApp:
                     "Connection": "keep-alive",
                     "X-Accel-Buffering": "no",
                     "Access-Control-Allow-Origin": "*",
-                    "Content-Encoding": "identity"
+                    "Content-Encoding": "identity",
                 },
             )
 
@@ -148,13 +142,9 @@ class WebApp:
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 # Make request to agent service
-                request_data = {
-                    "message": message,
-                    "session_id": session_id
-                }
+                request_data = {"message": message, "session_id": session_id}
 
-                logger.info(
-                    "Forwarding message to agent service: %s", request_data)
+                logger.info("Forwarding message to agent service: %s", request_data)
                 logger.info("Agent service URL: %s", AGENT_SERVICE_URL)
 
                 # Create headers with trace context propagation
@@ -163,14 +153,10 @@ class WebApp:
                 inject(headers)  # This propagates the current span context
 
                 async with client.stream(
-                    "POST",
-                    f"{AGENT_SERVICE_URL}/chat/stream",
-                    json=request_data,
-                    headers=headers
+                    "POST", f"{AGENT_SERVICE_URL}/chat/stream", json=request_data, headers=headers
                 ) as response:
                     if response.status_code != 200:
-                        logger.error(
-                            "Agent service returned error: %s", response.status_code)
+                        logger.error("Agent service returned error: %s", response.status_code)
                         yield f"data: {json.dumps({'error': f'Agent service error: {response.status_code}'})}\n\n"
                         return
 
@@ -178,9 +164,9 @@ class WebApp:
                     async for chunk in response.aiter_text():
                         if chunk.strip():
                             # Parse and forward each chunk
-                            lines = chunk.strip().split('\n')
+                            lines = chunk.strip().split("\n")
                             for line in lines:
-                                if line.startswith('data: '):
+                                if line.startswith("data: "):
                                     # Remove 'data: ' prefix
                                     data_str = line[6:]
                                     try:
@@ -203,10 +189,7 @@ class WebApp:
 
                     # Add complete message to session
                     if assistant_message:
-                        self.chat_sessions[session_id].append({
-                            "role": "assistant",
-                            "content": assistant_message
-                        })
+                        self.chat_sessions[session_id].append({"role": "assistant", "content": assistant_message})
 
             # Send completion signal
             yield "data: [DONE]\n\n"
@@ -247,8 +230,7 @@ class WebApp:
         try:
             file_path.resolve().relative_to(files_dir.resolve())
         except ValueError as exc:
-            raise HTTPException(
-                status_code=403, detail="Access denied") from exc
+            raise HTTPException(status_code=403, detail="Access denied") from exc
 
         return FileResponse(path=str(file_path))
 
@@ -264,19 +246,10 @@ class WebApp:
                 response = await client.get(f"{AGENT_SERVICE_URL}/health", headers=headers)
                 if response.status_code == 200:
                     agent_status = response.json()
-                    return {
-                        **web_status,
-                        "agent_service": agent_status
-                    }
-                return {
-                    **web_status,
-                    "agent_service": {"status": "error", "code": response.status_code}
-                }
+                    return {**web_status, "agent_service": agent_status}
+                return {**web_status, "agent_service": {"status": "error", "code": response.status_code}}
         except Exception as e:
-            return {
-                **web_status,
-                "agent_service": {"status": "error", "error": str(e)}
-            }
+            return {**web_status, "agent_service": {"status": "error", "error": str(e)}}
 
 
 # FastAPI app
