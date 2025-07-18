@@ -24,7 +24,7 @@ public class DatabaseSchemaTools
 
         logger.LogInformation("Fetching schemas for tables: {TableNames}", string.Join(", ", tableNames));
 
-        var rlsUserId = GetRequestUserId(httpContextAccessor);
+        var rlsUserId = httpContextAccessor.GetRequestUserId();
 
         logger.LogInformation("RLS User ID: {RlsUserId}", rlsUserId);
 
@@ -76,22 +76,6 @@ public class DatabaseSchemaTools
         }
 
         return schemas.ToString();
-    }
-
-    private static string GetRequestUserId(IHttpContextAccessor httpContextAccessor)
-    {
-        if (httpContextAccessor.HttpContext is null)
-        {
-            throw new InvalidOperationException("HttpContext is not available.");
-        }
-
-        var rlsHeader = httpContextAccessor.HttpContext.Request.Headers["x-rls-user-id"].FirstOrDefault();
-        if (string.IsNullOrEmpty(rlsHeader))
-        {
-            rlsHeader = "00000000-0000-0000-0000-000000000000";
-        }
-
-        return rlsHeader;
     }
 
     private static (string schema, string table) ParseTableName(string tableName)

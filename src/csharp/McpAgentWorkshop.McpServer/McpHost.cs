@@ -7,7 +7,8 @@ builder.AddServiceDefaults();
 builder.Services.AddMcpServer()
     .WithHttpTransport(o => o.Stateless = true)
     .WithTools<EchoTools>()
-    .WithTools<DatabaseSchemaTools>();
+    .WithTools<DatabaseSchemaTools>()
+    .WithTools<SalesTools>();
 
 builder.Services.AddHttpContextAccessor();
 
